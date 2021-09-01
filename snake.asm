@@ -84,16 +84,15 @@ init_data:
 init_stack:
     mov bp, DATA_LEN                    ; the base pointer points to snake's head
     mov sp, bp
-    mov ax, 0x280d
-    push ax                             ; push snake's initial position (40, 13)
+    push 0x280d                         ; push snake's initial position (40, 13)
 
 init_video:
     xor ah, ah
     mov al, 0x03
     int 0x10                            ; set video mode: 80x25 chars, 16-color
 
-    mov ax, VIDMEM
-    mov es, ax                          ; set es to point at video memory
+    push VIDMEM
+    pop es                              ; set es to point at video memory
 
 game_loop:
     read_key:
@@ -115,64 +114,67 @@ game_loop:
     handle_input:
         ; change the direction of snake by maximum 90 deg.
         .w:
-            mov dx, word [SNAKE_SPEED]
-            cmp dl, 0x01
+            mov ax, word [SNAKE_SPEED]
+            cmp al, 0x01
             je calculate_new_head_pos
-            xor dh, dh
-            mov dl, -0x01
-            mov word [SNAKE_SPEED], dx
+            xor ah, ah
+            mov al, -0x01
+            mov word [SNAKE_SPEED], ax
             jmp calculate_new_head_pos
         .s:
-            mov dx, word [SNAKE_SPEED]
-            cmp dl, -0x01
+            mov ax, word [SNAKE_SPEED]
+            cmp al, -0x01
             je calculate_new_head_pos
-            xor dh, dh
-            mov dl, 0x01
-            mov word [SNAKE_SPEED], dx
+            xor ah, ah
+            mov al, 0x01
+            mov word [SNAKE_SPEED], ax
             jmp calculate_new_head_pos
         .a:
-            mov dx, word [SNAKE_SPEED]
-            cmp dh, 0x01
+            mov ax, word [SNAKE_SPEED]
+            cmp ah, 0x01
             je calculate_new_head_pos
-            xor dl, dl
-            mov dh, -0x01
-            mov word [SNAKE_SPEED], dx
+            xor al, al
+            mov ah, -0x01
+            mov word [SNAKE_SPEED], ax
             jmp calculate_new_head_pos
         .d:
-            mov dx, word [SNAKE_SPEED]
-            cmp dh, -0x01
+            mov ax, word [SNAKE_SPEED]
+            cmp ah, -0x01
             je calculate_new_head_pos
-            xor dl, dl
-            mov dh, 0x01
-            mov word [SNAKE_SPEED], dx
+            xor al, al
+            mov ah, 0x01
+            mov word [SNAKE_SPEED], ax
 
     calculate_new_head_pos:
-        mov bx, word [bp - 0x02]        ; head position
+        mov ax, word [bp - 0x02]        ; head position
         mov cx, word [SNAKE_SPEED]
 
         .move_head_vertically:
-            add bl, cl
+            add al, cl
             .check_top_border:
-                cmp bl, 0x00
+                cmp al, 0x00
                 jge .check_bottom_border
-                add bl, COL_HEIGHT
+                add al, COL_HEIGHT
                 jmp .move_head_horizontally
             .check_bottom_border:
-                cmp bl, COL_HEIGHT
+                cmp al, COL_HEIGHT
                 jl .move_head_horizontally
-                sub bl, COL_HEIGHT
+                sub al, COL_HEIGHT
 
         .move_head_horizontally:
-            add bh, ch
+            add ah, ch
             .check_left_border:
-                cmp bh, 0x00
+                cmp ah, 0x00
                 jge .check_right_border
-                add bh, ROW_LENGTH
-                jmp move_body
+                add ah, ROW_LENGTH
+                jmp .store
             .check_right_border:
-                cmp bh, ROW_LENGTH
-                jl move_body
-                sub bh, ROW_LENGTH
+                cmp ah, ROW_LENGTH
+                jl .store
+                sub ah, ROW_LENGTH
+
+        .store:
+            mov bx, ax
 
     move_body:
         mov si, sp
@@ -195,13 +197,12 @@ game_loop:
         mov word [bp - 0x02], bx
 
     eat_food:
-        mov cx, word [FOOD_POS]
-        cmp cx, bx
+        mov ax, word [FOOD_POS]
+        cmp ax, bx
         jne clear_board
         inc word [SNAKE_LEN]
         mov si, sp
-        mov bx, word [si]
-        push bx                         ; add new snake segment
+        push word [si]                  ; add new snake segment
         call move_food                  ; relocate food
 
     clear_board:
@@ -263,11 +264,11 @@ game_loop:
         jz end
 
     delay:
-        mov bx, [fs:TIMER]
-        add bx, 0x02                    ; wait for 2 ticks
+        mov ax, word [fs:TIMER]
+        inc ax                    ; wait for 2 ticks
         .wait:
-            cmp word [fs:TIMER], bx
-            jl .wait
+            cmp ax, word [fs:TIMER]
+            jge .wait
 
     jmp game_loop
 
